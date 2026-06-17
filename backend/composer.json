@@ -1,0 +1,20 @@
+{
+    "name": "erp/stocco",
+    "description": "ERP Stocco - Sistema de Gestao Empresarial",
+    "type": "project",
+    "require": {
+        "php": ">=8.1",
+        "vlucas/phpdotenv": "^5.5",
+        "firebase/php-jwt": "^6.8",
+        "respect/validation": "^2.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "ErpStocco\\": "src/"
+        }
+    },
+    "scripts": {
+        "migrate": "php database/migrations/migrate.php",
+        "seed": "php database/seeders/seeder.php"
+    }
+}
