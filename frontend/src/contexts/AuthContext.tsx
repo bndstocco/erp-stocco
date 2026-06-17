@@ -7,6 +7,7 @@ interface AuthContextData {
   isAuthenticated: boolean
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string) => Promise<void>
   logout: () => void
 }
 
@@ -35,6 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user)
   }
 
+  async function register(name: string, email: string, password: string) {
+    const response = await authService.register(name, email, password)
+    authService.setToken(response.token)
+    authService.setUser(response.user)
+    setUser(response.user)
+  }
+
   function logout() {
     setUser(null)
     authService.logout()
@@ -47,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         loading,
         login,
+        register,
         logout,
       }}
     >

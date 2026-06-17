@@ -31,7 +31,7 @@ class CreateCustomerUseCase
             city: $data['city'] ?? null,
             state: $data['state'] ?? null,
             zipcode: $data['zipcode'] ?? null,
-            birthDate: $data['birth_date'] ?? null,
+            birthDate: !empty($data['birth_date']) ? $data['birth_date'] : null,
             notes: $data['notes'] ?? null,
             status: $data['status'] ?? 'active',
         );

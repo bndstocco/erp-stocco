@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Account;
 use ErpStocco\Domain\Repositories\AccountRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLAccountRepository implements AccountRepositoryInterface
@@ -20,13 +21,17 @@ class MySQLAccountRepository implements AccountRepositoryInterface
 
     public function findById(int $id): ?Account
     {
-        $data = (clone $this->qb)->where('id', $id)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['type'])) {
             $qb->where('type', $filters['type']);
         }
@@ -40,6 +45,7 @@ class MySQLAccountRepository implements AccountRepositoryInterface
     public function save(Account $account): Account
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'name' => $account->getName(),
             'type' => $account->getType(),
             'balance' => $account->getBalance(),
@@ -78,13 +84,16 @@ class MySQLAccountRepository implements AccountRepositoryInterface
 
     public function count(): int
     {
-        return (clone $this->qb)->count();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        return $qb->count();
     }
 
     public function getTotalBalance(): float
     {
         $pdo = Connection::getInstance()->getPdo();
-        $stmt = $pdo->query("SELECT SUM(balance) as total FROM accounts WHERE status = 'active'");
+        $stmt = $pdo->prepare("SELECT SUM(balance) as total FROM accounts WHERE status = 'active' AND created_by = :created_by");
+        $stmt->execute(['created_by' => UserContext::getInstance()->getUserId()]);
         return (float) ($stmt->fetch()['total'] ?? 0);
     }
 

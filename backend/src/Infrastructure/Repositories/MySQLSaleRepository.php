@@ -8,6 +8,7 @@ use ErpStocco\Domain\Entities\Sale;
 use ErpStocco\Domain\Entities\SaleItem;
 use ErpStocco\Domain\Repositories\SaleRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLSaleRepository implements SaleRepositoryInterface
@@ -23,12 +24,13 @@ class MySQLSaleRepository implements SaleRepositoryInterface
 
     public function findById(int $id): ?Sale
     {
-        $data = (clone $this->qb)
-            ->select(['sales.*', 'customers.name as customer_name', 'users.name as user_name'])
-            ->join('customers', 'sales.customer_id', '=', 'customers.id', 'LEFT')
-            ->join('users', 'sales.user_id', '=', 'users.id', 'LEFT')
-            ->where('sales.id', $id)
-            ->first();
+        $qb = clone $this->qb;
+        $qb->select(['sales.*', 'customers.name as customer_name', 'users.name as user_name']);
+        $qb->join('customers', 'sales.customer_id', '=', 'customers.id', 'LEFT');
+        $qb->join('users', 'sales.user_id', '=', 'users.id', 'LEFT');
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('sales.id', $id);
+        $data = $qb->first();
 
         if (!$data) return null;
 
@@ -41,13 +43,17 @@ class MySQLSaleRepository implements SaleRepositoryInterface
 
     public function findByInvoiceNumber(string $invoiceNumber): ?Sale
     {
-        $data = (clone $this->qb)->where('invoice_number', $invoiceNumber)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('invoice_number', $invoiceNumber);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         $qb->select(['sales.*', 'customers.name as customer_name', 'users.name as user_name'])
            ->join('customers', 'sales.customer_id', '=', 'customers.id', 'LEFT')
            ->join('users', 'sales.user_id', '=', 'users.id', 'LEFT');
@@ -86,6 +92,7 @@ class MySQLSaleRepository implements SaleRepositoryInterface
     public function save(Sale $sale): Sale
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'invoice_number' => $sale->getInvoiceNumber(),
             'customer_id' => $sale->getCustomerId(),
             'user_id' => $sale->getUserId(),
@@ -140,6 +147,7 @@ class MySQLSaleRepository implements SaleRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['status'])) {
             $qb->where('status', $filters['status']);
         }
@@ -158,10 +166,11 @@ class MySQLSaleRepository implements SaleRepositoryInterface
             FROM sales 
             WHERE YEAR(sale_date) = :year 
                 AND status = 'completed'
+                AND created_by = :created_by
             GROUP BY MONTH(sale_date)
             ORDER BY month
         ");
-        $stmt->execute(['year' => $year]);
+        $stmt->execute(['year' => $year, 'created_by' => UserContext::getInstance()->getUserId()]);
         return $stmt->fetchAll();
     }
 
@@ -177,12 +186,13 @@ class MySQLSaleRepository implements SaleRepositoryInterface
             FROM sale_items
             JOIN sales ON sale_items.sale_id = sales.id
             WHERE sales.status = 'completed'
+                AND sales.created_by = :created_by
             GROUP BY sale_items.product_id, sale_items.product_name
             ORDER BY total_quantity DESC
             LIMIT :limit
         ");
         $stmt->bindValue('limit', $limit, \PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt->execute(['created_by' => UserContext::getInstance()->getUserId()]);
         return $stmt->fetchAll();
     }
 

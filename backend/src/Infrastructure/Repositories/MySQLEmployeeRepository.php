@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Employee;
 use ErpStocco\Domain\Repositories\EmployeeRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLEmployeeRepository implements EmployeeRepositoryInterface
@@ -20,19 +21,26 @@ class MySQLEmployeeRepository implements EmployeeRepositoryInterface
 
     public function findById(int $id): ?Employee
     {
-        $data = (clone $this->qb)->where('id', $id)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findByEmail(string $email): ?Employee
     {
-        $data = (clone $this->qb)->where('email', $email)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('email', $email);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['search'])) {
             $qb->where(function($q) use ($filters) {
                 $q->whereLike('first_name', $filters['search'])
@@ -63,6 +71,7 @@ class MySQLEmployeeRepository implements EmployeeRepositoryInterface
     public function save(Employee $employee): Employee
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'user_id' => $employee->getUserId(),
             'first_name' => $employee->getFirstName(),
             'last_name' => $employee->getLastName(),
@@ -120,6 +129,7 @@ class MySQLEmployeeRepository implements EmployeeRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['department'])) {
             $qb->where('department', $filters['department']);
         }
@@ -132,7 +142,8 @@ class MySQLEmployeeRepository implements EmployeeRepositoryInterface
     public function getTotalPayroll(): float
     {
         $pdo = Connection::getInstance()->getPdo();
-        $stmt = $pdo->query("SELECT SUM(salary) as total FROM employees WHERE status = 'active'");
+        $stmt = $pdo->prepare("SELECT SUM(salary) as total FROM employees WHERE status = 'active' AND created_by = :created_by");
+        $stmt->execute(['created_by' => UserContext::getInstance()->getUserId()]);
         return (float) ($stmt->fetch()['total'] ?? 0);
     }
 

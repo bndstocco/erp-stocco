@@ -60,13 +60,12 @@ export default function CategoryList() {
 
   return (
     <div>
-      <PageHeader title="Categorias" subtitle="Organize seus produtos por categorias" buttonLabel="Nova Categoria" buttonPath="#" />
-      <div className="flex items-center justify-end mb-4">
+      <PageHeader title="Categorias" subtitle="Organize seus produtos por categorias">
         <button onClick={openNew} className="btn-primary btn-sm">
           <Plus size={16} />
           Nova Categoria
         </button>
-      </div>
+      </PageHeader>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (

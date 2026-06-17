@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Attendance;
 use ErpStocco\Domain\Repositories\AttendanceRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLAttendanceRepository implements AttendanceRepositoryInterface
@@ -20,46 +21,50 @@ class MySQLAttendanceRepository implements AttendanceRepositoryInterface
 
     public function findById(int $id): ?Attendance
     {
-        $data = (clone $this->qb)
-            ->select(['attendancemployees.*', 'employees.first_name', 'employees.last_name'])
-            ->join('employees', 'attendancemployees.employee_id', '=', 'employees.id')
-            ->where('attendancemployees.id', $id)
-            ->first();
+        $qb = clone $this->qb;
+        $qb->select(['attendance.*', 'employees.first_name', 'employees.last_name']);
+        $qb->join('employees', 'attendance.employee_id', '=', 'employees.id');
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('attendance.id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findByEmployeeAndDate(int $employeeId, string $date): ?Attendance
     {
-        $data = (clone $this->qb)->where('employee_id', $employeeId)
-            ->where('date', $date)
-            ->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('employee_id', $employeeId);
+        $qb->where('date', $date);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
-        $qb->select(['attendancemployees.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"])
-           ->join('employees', 'attendancemployees.employee_id', '=', 'employees.id');
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->select(['attendance.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"])
+           ->join('employees', 'attendance.employee_id', '=', 'employees.id');
 
         if (!empty($filters['employee_id'])) {
-            $qb->where('attendancemployees.employee_id', $filters['employee_id']);
+            $qb->where('attendance.employee_id', $filters['employee_id']);
         }
         if (!empty($filters['status'])) {
-            $qb->where('attendancemployees.status', $filters['status']);
+            $qb->where('attendance.status', $filters['status']);
         }
         if (!empty($filters['date_from'])) {
-            $qb->where('attendancemployees.date', '>=', $filters['date_from']);
+            $qb->where('attendance.date', '>=', $filters['date_from']);
         }
         if (!empty($filters['date_to'])) {
-            $qb->where('attendancemployees.date', '<=', $filters['date_to']);
+            $qb->where('attendance.date', '<=', $filters['date_to']);
         }
         if (!empty($filters['month']) && !empty($filters['year'])) {
-            $qb->where('MONTH(attendancemployees.date)', $filters['month']);
-            $qb->where('YEAR(attendancemployees.date)', $filters['year']);
+            $qb->where('MONTH(attendance.date)', $filters['month']);
+            $qb->where('YEAR(attendance.date)', $filters['year']);
         }
 
-        $qb->orderBy('attendancemployees.date', 'DESC');
+        $qb->orderBy('attendance.date', 'DESC');
 
         if (!empty($filters['per_page'])) {
             $page = $filters['page'] ?? 1;
@@ -74,6 +79,7 @@ class MySQLAttendanceRepository implements AttendanceRepositoryInterface
     public function save(Attendance $attendance): Attendance
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'employee_id' => $attendance->getEmployeeId(),
             'date' => $attendance->getDate(),
             'check_in' => $attendance->getCheckIn(),
@@ -115,6 +121,7 @@ class MySQLAttendanceRepository implements AttendanceRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['employee_id'])) {
             $qb->where('employee_id', $filters['employee_id']);
         }
@@ -143,11 +150,13 @@ class MySQLAttendanceRepository implements AttendanceRepositoryInterface
             WHERE employee_id = :employee_id 
                 AND YEAR(date) = :year 
                 AND MONTH(date) = :month
+                AND created_by = :created_by
         ");
         $stmt->execute([
             'employee_id' => $employeeId,
             'year' => $year,
             'month' => $month,
+            'created_by' => UserContext::getInstance()->getUserId(),
         ]);
         return $stmt->fetch() ?: [];
     }

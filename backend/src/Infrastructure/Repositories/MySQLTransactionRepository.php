@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Transaction;
 use ErpStocco\Domain\Repositories\TransactionRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLTransactionRepository implements TransactionRepositoryInterface
@@ -20,17 +21,19 @@ class MySQLTransactionRepository implements TransactionRepositoryInterface
 
     public function findById(int $id): ?Transaction
     {
-        $data = (clone $this->qb)
-            ->select(['transactions.*', 'accounts.name as account_name'])
-            ->join('accounts', 'transactions.account_id', '=', 'accounts.id')
-            ->where('transactions.id', $id)
-            ->first();
+        $qb = clone $this->qb;
+        $qb->select(['transactions.*', 'accounts.name as account_name']);
+        $qb->join('accounts', 'transactions.account_id', '=', 'accounts.id');
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('transactions.id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         $qb->select(['transactions.*', 'accounts.name as account_name'])
            ->join('accounts', 'transactions.account_id', '=', 'accounts.id');
 
@@ -68,6 +71,7 @@ class MySQLTransactionRepository implements TransactionRepositoryInterface
     public function save(Transaction $transaction): Transaction
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'account_id' => $transaction->getAccountId(),
             'type' => $transaction->getType(),
             'category' => $transaction->getCategory(),
@@ -108,6 +112,7 @@ class MySQLTransactionRepository implements TransactionRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['type'])) {
             $qb->where('type', $filters['type']);
         }
@@ -125,9 +130,10 @@ class MySQLTransactionRepository implements TransactionRepositoryInterface
             FROM transactions 
             WHERE transaction_date BETWEEN :start_date AND :end_date
                 AND status = 'completed'
+                AND created_by = :created_by
             GROUP BY type
         ");
-        $stmt->execute(['start_date' => $startDate, 'end_date' => $endDate]);
+        $stmt->execute(['start_date' => $startDate, 'end_date' => $endDate, 'created_by' => UserContext::getInstance()->getUserId()]);
         return $stmt->fetchAll();
     }
 
@@ -140,8 +146,9 @@ class MySQLTransactionRepository implements TransactionRepositoryInterface
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
             FROM transactions 
             WHERE account_id = :account_id AND status = 'completed'
+                AND created_by = :created_by
         ");
-        $stmt->execute(['account_id' => $accountId]);
+        $stmt->execute(['account_id' => $accountId, 'created_by' => UserContext::getInstance()->getUserId()]);
         $data = $stmt->fetch();
         return (float) (($data['income'] ?? 0) - ($data['expense'] ?? 0));
     }

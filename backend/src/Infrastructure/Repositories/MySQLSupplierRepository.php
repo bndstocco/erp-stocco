@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Supplier;
 use ErpStocco\Domain\Repositories\SupplierRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLSupplierRepository implements SupplierRepositoryInterface
@@ -20,20 +21,27 @@ class MySQLSupplierRepository implements SupplierRepositoryInterface
 
     public function findById(int $id): ?Supplier
     {
-        $data = (clone $this->qb)->where('id', $id)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findByDocument(string $document): ?Supplier
     {
         $clean = preg_replace('/[^0-9]/', '', $document);
-        $data = (clone $this->qb)->where('document', $clean)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('document', $clean);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['search'])) {
             $qb->where(function($q) use ($filters) {
                 $q->whereLike('company_name', $filters['search'])
@@ -63,6 +71,7 @@ class MySQLSupplierRepository implements SupplierRepositoryInterface
     public function save(Supplier $supplier): Supplier
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'company_name' => $supplier->getCompanyName(),
             'contact_name' => $supplier->getContactName(),
             'email' => $supplier->getEmail(),
@@ -110,6 +119,7 @@ class MySQLSupplierRepository implements SupplierRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['status'])) {
             $qb->where('status', $filters['status']);
         }

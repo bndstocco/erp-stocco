@@ -13,6 +13,12 @@ export const authService = {
     return data.data
   },
 
+  async register(name: string, email: string, password: string): Promise<LoginResponse> {
+    const { data } = await api.post<ApiResponse<LoginResponse>>('/auth/register', { name, email, password })
+    if (data.error) throw new Error(data.message)
+    return data.data
+  },
+
   async me(): Promise<User> {
     const { data } = await api.get<ApiResponse<User>>('/auth/me')
     if (data.error) throw new Error(data.message)

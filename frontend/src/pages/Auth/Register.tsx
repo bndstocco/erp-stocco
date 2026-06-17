@@ -1,15 +1,16 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { Building2, LogIn, Eye, EyeOff } from 'lucide-react'
+import { Building2, UserPlus, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function Login() {
-  const [email, setEmail] = useState('admin@erpstocco.com.br')
-  const [password, setPassword] = useState('admin123')
+export default function Register() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { login, isAuthenticated } = useAuth()
+  const { register, isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
   if (isAuthenticated) {
@@ -19,18 +20,22 @@ export default function Login() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!email || !password) {
+    if (!name || !email || !password) {
       toast.error('Preencha todos os campos')
+      return
+    }
+    if (password.length < 6) {
+      toast.error('A senha deve ter no mínimo 6 caracteres')
       return
     }
 
     setLoading(true)
     try {
-      await login(email, password)
-      toast.success('Login realizado com sucesso!')
+      await register(name, email, password)
+      toast.success('Conta criada com sucesso!')
       navigate('/dashboard', { replace: true })
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erro ao fazer login')
+      toast.error(err.response?.data?.message || 'Erro ao criar conta')
     } finally {
       setLoading(false)
     }
@@ -44,13 +49,25 @@ export default function Login() {
             <Building2 className="text-primary-600" size={32} />
           </div>
           <h1 className="text-3xl font-bold text-white">ERP Stocco</h1>
-          <p className="text-primary-200 mt-2">Sistema de Gestão Empresarial</p>
+          <p className="text-primary-200 mt-2">Criar nova conta</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Entrar</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Cadastro</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="label">Nome</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="input"
+                placeholder="Seu nome"
+                required
+              />
+            </div>
+
             <div>
               <label className="label">Email</label>
               <input
@@ -71,7 +88,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input pr-10"
-                  placeholder="Sua senha"
+                  placeholder="Mínimo 6 caracteres"
                   required
                 />
                 <button
@@ -92,25 +109,18 @@ export default function Login() {
               {loading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
               ) : (
-                <LogIn size={18} />
+                <UserPlus size={18} />
               )}
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Criando conta...' : 'Criar Conta'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
-              Não tem uma conta?{' '}
-              <Link to="/register" className="text-primary-600 font-medium hover:text-primary-700">
-                Cadastre-se
+              Já tem uma conta?{' '}
+              <Link to="/login" className="text-primary-600 font-medium hover:text-primary-700">
+                Entrar
               </Link>
-            </p>
-          </div>
-
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 text-center">
-              Credenciais de demonstração:<br />
-              admin@erpstocco.com.br / admin123
             </p>
           </div>
         </div>

@@ -8,6 +8,7 @@ use ErpStocco\Domain\Entities\Purchase;
 use ErpStocco\Domain\Entities\PurchaseItem;
 use ErpStocco\Domain\Repositories\PurchaseRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLPurchaseRepository implements PurchaseRepositoryInterface
@@ -23,11 +24,12 @@ class MySQLPurchaseRepository implements PurchaseRepositoryInterface
 
     public function findById(int $id): ?Purchase
     {
-        $data = (clone $this->qb)
-            ->select(['purchases.*', 'suppliers.company_name as supplier_name'])
-            ->join('suppliers', 'purchases.supplier_id', '=', 'suppliers.id', 'LEFT')
-            ->where('purchases.id', $id)
-            ->first();
+        $qb = clone $this->qb;
+        $qb->select(['purchases.*', 'suppliers.company_name as supplier_name']);
+        $qb->join('suppliers', 'purchases.supplier_id', '=', 'suppliers.id', 'LEFT');
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('purchases.id', $id);
+        $data = $qb->first();
 
         if (!$data) return null;
 
@@ -40,13 +42,17 @@ class MySQLPurchaseRepository implements PurchaseRepositoryInterface
 
     public function findByPurchaseOrder(string $purchaseOrder): ?Purchase
     {
-        $data = (clone $this->qb)->where('purchase_order', $purchaseOrder)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('purchase_order', $purchaseOrder);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         $qb->select(['purchases.*', 'suppliers.company_name as supplier_name', 'users.name as user_name'])
            ->join('suppliers', 'purchases.supplier_id', '=', 'suppliers.id', 'LEFT')
            ->join('users', 'purchases.user_id', '=', 'users.id', 'LEFT');
@@ -86,6 +92,7 @@ class MySQLPurchaseRepository implements PurchaseRepositoryInterface
 
         try {
             $id = $this->qb->insert([
+                'created_by' => UserContext::getInstance()->getUserId(),
                 'purchase_order' => $purchase->getPurchaseOrder(),
                 'supplier_id' => $purchase->getSupplierId(),
                 'user_id' => $purchase->getUserId(),
@@ -143,6 +150,7 @@ class MySQLPurchaseRepository implements PurchaseRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['status'])) {
             $qb->where('status', $filters['status']);
         }

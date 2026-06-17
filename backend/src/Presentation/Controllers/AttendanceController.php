@@ -63,9 +63,14 @@ class AttendanceController
 
         $attendance->calculateHours();
 
-        $this->repository->save($attendance);
-        http_response_code(201);
-        echo json_encode(['error' => false, 'data' => $attendance->toArray()]);
+        try {
+            $this->repository->save($attendance);
+            http_response_code(201);
+            echo json_encode(['error' => false, 'data' => $attendance->toArray()]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => true, 'message' => 'Erro interno ao salvar registro']);
+        }
     }
 
     public function update(int $id): void
@@ -86,8 +91,13 @@ class AttendanceController
         if (isset($data['notes'])) $attendance->setNotes($data['notes']);
 
         $attendance->calculateHours();
-        $this->repository->update($attendance);
-        echo json_encode(['error' => false, 'data' => $attendance->toArray()]);
+        try {
+            $this->repository->update($attendance);
+            echo json_encode(['error' => false, 'data' => $attendance->toArray()]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => true, 'message' => 'Erro interno ao atualizar registro']);
+        }
     }
 
     public function destroy(int $id): void

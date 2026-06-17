@@ -20,7 +20,6 @@ Sistema de Gestão Empresarial completo com backend em PHP e frontend em React.
 - Arquitetura com Domain-Driven Design (Entities, Use Cases, Repositories)
 - **MySQL** com PDO e Query Builder customizado
 - Autenticação JWT
-- Validação com Respect/Validation
 
 ### Frontend
 - **React** 18 com TypeScript

@@ -62,6 +62,11 @@ class AuthService
         return $this->userRepository->findById((int) $payload['sub']);
     }
 
+    public function getUserFromId(int $id): ?User
+    {
+        return $this->userRepository->findById($id);
+    }
+
     public function hashPassword(string $password): string
     {
         return password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
@@ -72,7 +77,29 @@ class AuthService
         return password_verify($password, $hash);
     }
 
-    private function generateToken(User $user): string
+    public function register(string $name, string $email, string $password): array
+    {
+        $existing = $this->userRepository->findByEmail($email);
+        if ($existing) {
+            throw new \RuntimeException('Este e-mail já está cadastrado');
+        }
+
+        $user = new User(
+            name: $name,
+            email: new \ErpStocco\Domain\ValueObjects\Email($email),
+            password: $this->hashPassword($password),
+        );
+
+        $user = $this->userRepository->save($user);
+        $token = $this->generateToken($user);
+
+        return [
+            'token' => $token,
+            'user' => $user->toArray(),
+        ];
+    }
+
+    public function generateToken(User $user): string
     {
         $payload = [
             'iss' => $_ENV['APP_URL'] ?? 'http://localhost:8000',

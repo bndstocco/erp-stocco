@@ -58,6 +58,14 @@ class Router
         $uri = rtrim($uri, '/');
         if (empty($uri)) $uri = '/';
 
+        $publicRoutes = ['/api/auth/login', '/api/auth/register'];
+
+        if (!in_array($uri, $publicRoutes)) {
+            $auth = new \ErpStocco\Presentation\Middleware\AuthMiddleware();
+            $user = $auth->handle();
+            \ErpStocco\Infrastructure\Auth\UserContext::getInstance()->setUserId((int) $user['id']);
+        }
+
         foreach ($this->routes as $route) {
             if ($route['method'] !== $method) {
                 continue;

@@ -41,8 +41,39 @@ class AuthController
 
     public function me(): void
     {
-        $auth = new \ErpStocco\Presentation\Middleware\AuthMiddleware();
-        $user = $auth->handle();
-        echo json_encode(['error' => false, 'data' => $user]);
+        $userId = \ErpStocco\Infrastructure\Auth\UserContext::getInstance()->getUserId();
+        $user = $this->authService->getUserFromId($userId);
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => true, 'message' => 'Usuário não encontrado']);
+            return;
+        }
+        echo json_encode(['error' => false, 'data' => $user->toArray()]);
+    }
+
+    public function register(): void
+    {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (empty($data['name']) || empty($data['email']) || empty($data['password'])) {
+            http_response_code(400);
+            echo json_encode(['error' => true, 'message' => 'Nome, e-mail e senha são obrigatórios']);
+            return;
+        }
+
+        if (strlen($data['password']) < 6) {
+            http_response_code(400);
+            echo json_encode(['error' => true, 'message' => 'A senha deve ter no mínimo 6 caracteres']);
+            return;
+        }
+
+        try {
+            $result = $this->authService->register($data['name'], $data['email'], $data['password']);
+            http_response_code(201);
+            echo json_encode(['error' => false, 'data' => $result]);
+        } catch (\RuntimeException $e) {
+            http_response_code(400);
+            echo json_encode(['error' => true, 'message' => $e->getMessage()]);
+        }
     }
 }

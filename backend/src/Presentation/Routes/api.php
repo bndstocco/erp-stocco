@@ -8,6 +8,7 @@ use ErpStocco\Presentation\Controllers;
 
 // Auth
 $router->post('/api/auth/login', [Controllers\AuthController::class, 'login']);
+$router->post('/api/auth/register', [Controllers\AuthController::class, 'register']);
 $router->get('/api/auth/me', [Controllers\AuthController::class, 'me']);
 
 // Dashboard

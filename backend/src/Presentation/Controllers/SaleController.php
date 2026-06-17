@@ -100,8 +100,6 @@ class SaleController
 
     private function getUserId(): int
     {
-        $auth = new \ErpStocco\Presentation\Middleware\AuthMiddleware();
-        $user = $auth->handle();
-        return $user['id'];
+        return \ErpStocco\Infrastructure\Auth\UserContext::getInstance()->getUserId();
     }
 }

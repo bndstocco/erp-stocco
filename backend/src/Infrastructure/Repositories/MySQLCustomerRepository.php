@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Customer;
 use ErpStocco\Domain\Repositories\CustomerRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLCustomerRepository implements CustomerRepositoryInterface
@@ -20,20 +21,27 @@ class MySQLCustomerRepository implements CustomerRepositoryInterface
 
     public function findById(int $id): ?Customer
     {
-        $data = (clone $this->qb)->where('id', $id)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findByDocument(string $document): ?Customer
     {
         $clean = preg_replace('/[^0-9]/', '', $document);
-        $data = (clone $this->qb)->where('document', $clean)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('document', $clean);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['search'])) {
             $qb->where(function($q) use ($filters) {
                 $q->whereLike('name', $filters['search'])
@@ -67,6 +75,7 @@ class MySQLCustomerRepository implements CustomerRepositoryInterface
     public function save(Customer $customer): Customer
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'name' => $customer->getName(),
             'email' => $customer->getEmail(),
             'phone' => $customer->getPhone(),
@@ -112,6 +121,7 @@ class MySQLCustomerRepository implements CustomerRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['status'])) {
             $qb->where('status', $filters['status']);
         }

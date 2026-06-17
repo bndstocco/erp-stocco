@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Product;
 use ErpStocco\Domain\Repositories\ProductRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLProductRepository implements ProductRepositoryInterface
@@ -20,23 +21,28 @@ class MySQLProductRepository implements ProductRepositoryInterface
 
     public function findById(int $id): ?Product
     {
-        $data = (clone $this->qb)
-            ->select(['products.*', 'categories.name as category_name'])
-            ->join('categories', 'products.category_id', '=', 'categories.id', 'LEFT')
-            ->where('products.id', $id)
-            ->first();
+        $qb = clone $this->qb;
+        $qb->select(['products.*', 'categories.name as category_name']);
+        $qb->join('categories', 'products.category_id', '=', 'categories.id', 'LEFT');
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('products.id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findBySku(string $sku): ?Product
     {
-        $data = (clone $this->qb)->where('sku', $sku)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('sku', $sku);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         $qb->select(['products.*', 'categories.name as category_name'])
            ->join('categories', 'products.category_id', '=', 'categories.id', 'LEFT');
 
@@ -71,6 +77,7 @@ class MySQLProductRepository implements ProductRepositoryInterface
     public function save(Product $product): Product
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'name' => $product->getName(),
             'description' => $product->getDescription(),
             'sku' => $product->getSku(),
@@ -119,6 +126,7 @@ class MySQLProductRepository implements ProductRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['category_id'])) {
             $qb->where('category_id', $filters['category_id']);
         }
@@ -128,6 +136,7 @@ class MySQLProductRepository implements ProductRepositoryInterface
     public function findLowStock(): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         $data = $qb->whereColumn('products.stock_quantity', '<=', 'products.min_stock')
                    ->where('products.status', 'active')
                    ->get();

@@ -74,7 +74,7 @@ export default function Sidebar() {
         <p className="text-xs text-gray-400">Sistema de Gestão</p>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-thin">
         {menuItems.map((item) => (
           <div key={item.label}>
             {item.to ? (
@@ -95,7 +95,9 @@ export default function Sidebar() {
             ) : (
               <button
                 onClick={() => toggleExpand(item.label)}
-                className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  expanded.includes(item.label) ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                }`}
               >
                 <div className="flex items-center gap-3">
                   {item.icon}
@@ -105,14 +107,14 @@ export default function Sidebar() {
               </button>
             )}
             {item.children && expanded.includes(item.label) && (
-              <div className="ml-8 mt-1 space-y-1">
+              <div className="mt-1 space-y-1">
                 {item.children.map((child) => (
                   <NavLink
                     key={child.to}
                     to={child.to}
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
-                      `block px-3 py-2 rounded-lg text-sm transition-colors ${
+                      `flex items-center gap-3 pl-10 pr-3 py-2 rounded-lg text-sm transition-colors ${
                         isActive
                           ? 'bg-primary-600 text-white'
                           : 'text-gray-400 hover:bg-gray-700 hover:text-white'

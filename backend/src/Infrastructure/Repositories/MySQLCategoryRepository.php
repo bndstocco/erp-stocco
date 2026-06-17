@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Category;
 use ErpStocco\Domain\Repositories\CategoryRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLCategoryRepository implements CategoryRepositoryInterface
@@ -20,13 +21,17 @@ class MySQLCategoryRepository implements CategoryRepositoryInterface
 
     public function findById(int $id): ?Category
     {
-        $data = (clone $this->qb)->where('id', $id)->first();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['search'])) {
             $qb->whereLike('name', $filters['search']);
         }
@@ -40,6 +45,7 @@ class MySQLCategoryRepository implements CategoryRepositoryInterface
     public function save(Category $category): Category
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'name' => $category->getName(),
             'description' => $category->getDescription(),
             'parent_id' => $category->getParentId(),
@@ -70,7 +76,9 @@ class MySQLCategoryRepository implements CategoryRepositoryInterface
 
     public function count(): int
     {
-        return (clone $this->qb)->count();
+        $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        return $qb->count();
     }
 
     private function hydrate(array $data): Category

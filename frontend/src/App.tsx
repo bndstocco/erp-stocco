@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import Layout from './components/layouts/Layout'
 import Login from './pages/Auth/Login'
+import Register from './pages/Auth/Register'
 import Dashboard from './pages/Dashboard/Dashboard'
 import ProductList from './pages/Products/ProductList'
 import ProductForm from './pages/Products/ProductForm'
@@ -33,6 +34,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />

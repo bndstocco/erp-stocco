@@ -7,6 +7,7 @@ namespace ErpStocco\Infrastructure\Repositories;
 use ErpStocco\Domain\Entities\Payroll;
 use ErpStocco\Domain\Repositories\PayrollRepositoryInterface;
 use ErpStocco\Infrastructure\Database\Connection;
+use ErpStocco\Infrastructure\Auth\UserContext;
 use ErpStocco\Infrastructure\Database\QueryBuilder;
 
 class MySQLPayrollRepository implements PayrollRepositoryInterface
@@ -20,17 +21,19 @@ class MySQLPayrollRepository implements PayrollRepositoryInterface
 
     public function findById(int $id): ?Payroll
     {
-        $data = (clone $this->qb)
-            ->select(['payroll.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"])
-            ->join('employees', 'payroll.employee_id', '=', 'employees.id')
-            ->where('payroll.id', $id)
-            ->first();
+        $qb = clone $this->qb;
+        $qb->select(['payroll.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"]);
+        $qb->join('employees', 'payroll.employee_id', '=', 'employees.id');
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
+        $qb->where('payroll.id', $id);
+        $data = $qb->first();
         return $data ? $this->hydrate($data) : null;
     }
 
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         $qb->select(['payroll.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"])
            ->join('employees', 'payroll.employee_id', '=', 'employees.id');
 
@@ -62,6 +65,7 @@ class MySQLPayrollRepository implements PayrollRepositoryInterface
     public function save(Payroll $payroll): Payroll
     {
         $id = $this->qb->insert([
+            'created_by' => UserContext::getInstance()->getUserId(),
             'employee_id' => $payroll->getEmployeeId(),
             'period_start' => $payroll->getPeriodStart(),
             'period_end' => $payroll->getPeriodEnd(),
@@ -114,6 +118,7 @@ class MySQLPayrollRepository implements PayrollRepositoryInterface
     public function count(array $filters = []): int
     {
         $qb = clone $this->qb;
+        $qb->where('created_by', UserContext::getInstance()->getUserId());
         if (!empty($filters['status'])) {
             $qb->where('status', $filters['status']);
         }
@@ -140,10 +145,12 @@ class MySQLPayrollRepository implements PayrollRepositoryInterface
             FROM payroll 
             WHERE period_start = :period_start 
                 AND period_end = :period_end
+                AND created_by = :created_by
         ");
         $stmt->execute([
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
+            'created_by' => UserContext::getInstance()->getUserId(),
         ]);
         return $stmt->fetch() ?: [];
     }
