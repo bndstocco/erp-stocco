@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ErpStocco\Infrastructure\Database;
 
 use PDO;
+use Closure;
 
 class QueryBuilder
 {
@@ -31,16 +32,56 @@ class QueryBuilder
         return $this;
     }
 
-    public function where(string $column, string $operator = '=', mixed $value = null): self
+    public function where($column, $operator = '=', $value = null): self
     {
+        if ($column instanceof Closure) {
+            $subQb = new self($this->pdo, $this->table);
+            $column($subQb);
+            if (!empty($subQb->wheres)) {
+                $subSql = $subQb->buildWhereConditions();
+                $this->wheres[] = ['sql' => '(' . $subSql . ')', 'boolean' => 'AND'];
+                $this->params = array_merge($this->params, $subQb->params);
+            }
+            return $this;
+        }
+
         if ($value === null) {
             $value = $operator;
             $operator = '=';
         }
 
         $placeholder = 'where_' . count($this->params);
-        $this->wheres[] = "{$column} {$operator} :{$placeholder}";
+        $this->wheres[] = ['sql' => "{$column} {$operator} :{$placeholder}", 'boolean' => 'AND'];
         $this->params[$placeholder] = $value;
+        return $this;
+    }
+
+    public function orWhere(string $column, $operator = '=', $value = null): self
+    {
+        if ($value === null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        $placeholder = 'or_where_' . count($this->params);
+        $this->wheres[] = ['sql' => "{$column} {$operator} :{$placeholder}", 'boolean' => 'OR'];
+        $this->params[$placeholder] = $value;
+        return $this;
+    }
+
+    public function whereLike(string $column, string $value): self
+    {
+        $placeholder = 'like_' . count($this->params);
+        $this->wheres[] = ['sql' => "{$column} LIKE :{$placeholder}", 'boolean' => 'AND'];
+        $this->params[$placeholder] = "%{$value}%";
+        return $this;
+    }
+
+    public function orWhereLike(string $column, string $value): self
+    {
+        $placeholder = 'or_like_' . count($this->params);
+        $this->wheres[] = ['sql' => "{$column} LIKE :{$placeholder}", 'boolean' => 'OR'];
+        $this->params[$placeholder] = "%{$value}%";
         return $this;
     }
 
@@ -52,23 +93,25 @@ class QueryBuilder
             $placeholders[] = ":{$placeholder}";
             $this->params[$placeholder] = $value;
         }
-        $this->wheres[] = "{$column} IN (" . implode(', ', $placeholders) . ")";
+        $this->wheres[] = ['sql' => "{$column} IN (" . implode(', ', $placeholders) . ")", 'boolean' => 'AND'];
         return $this;
     }
 
-    public function whereLike(string $column, string $value): self
+    public function whereColumn(string $column, string $operator = '=', string $column2 = ''): self
     {
-        $placeholder = 'like_' . count($this->params);
-        $this->wheres[] = "{$column} LIKE :{$placeholder}";
-        $this->params[$placeholder] = "%{$value}%";
+        if ($column2 === '') {
+            $column2 = $operator;
+            $operator = '=';
+        }
+        $this->wheres[] = ['sql' => "{$column} {$operator} {$column2}", 'boolean' => 'AND'];
         return $this;
     }
 
-    public function whereBetween(string $column, mixed $start, mixed $end): self
+    public function whereBetween(string $column, $start, $end): self
     {
         $startPlaceholder = 'between_start_' . count($this->params);
         $endPlaceholder = 'between_end_' . count($this->params);
-        $this->wheres[] = "{$column} BETWEEN :{$startPlaceholder} AND :{$endPlaceholder}";
+        $this->wheres[] = ['sql' => "{$column} BETWEEN :{$startPlaceholder} AND :{$endPlaceholder}", 'boolean' => 'AND'];
         $this->params[$startPlaceholder] = $start;
         $this->params[$endPlaceholder] = $end;
         return $this;
@@ -76,13 +119,13 @@ class QueryBuilder
 
     public function whereNull(string $column): self
     {
-        $this->wheres[] = "{$column} IS NULL";
+        $this->wheres[] = ['sql' => "{$column} IS NULL", 'boolean' => 'AND'];
         return $this;
     }
 
     public function whereNotNull(string $column): self
     {
-        $this->wheres[] = "{$column} IS NOT NULL";
+        $this->wheres[] = ['sql' => "{$column} IS NOT NULL", 'boolean' => 'AND'];
         return $this;
     }
 
@@ -116,6 +159,21 @@ class QueryBuilder
         return $this;
     }
 
+    private function buildWhereConditions(): string
+    {
+        if (empty($this->wheres)) return '';
+
+        $parts = [];
+        foreach ($this->wheres as $i => $where) {
+            if ($i === 0) {
+                $parts[] = $where['sql'];
+            } else {
+                $parts[] = $where['boolean'] . ' ' . $where['sql'];
+            }
+        }
+        return implode(' ', $parts);
+    }
+
     public function buildSelect(): string
     {
         $sql = "SELECT " . implode(', ', $this->selects) . " FROM {$this->table}";
@@ -124,8 +182,9 @@ class QueryBuilder
             $sql .= " " . implode(' ', $this->joins);
         }
 
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . implode(' AND ', $this->wheres);
+        $whereClause = $this->buildWhereConditions();
+        if ($whereClause !== '') {
+            $sql .= " WHERE " . $whereClause;
         }
 
         if ($this->groupBy) {
@@ -188,8 +247,9 @@ class QueryBuilder
         $sets = implode(', ', array_map(fn($key) => "{$key} = :{$key}", array_keys($data)));
         $sql = "UPDATE {$this->table} SET {$sets}";
 
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . implode(' AND ', $this->wheres);
+        $whereClause = $this->buildWhereConditions();
+        if ($whereClause !== '') {
+            $sql .= " WHERE " . $whereClause;
         }
 
         $stmt = $this->pdo->prepare($sql);
@@ -202,8 +262,9 @@ class QueryBuilder
     {
         $sql = "DELETE FROM {$this->table}";
 
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . implode(' AND ', $this->wheres);
+        $whereClause = $this->buildWhereConditions();
+        if ($whereClause !== '') {
+            $sql .= " WHERE " . $whereClause;
         }
 
         $stmt = $this->pdo->prepare($sql);
@@ -214,7 +275,10 @@ class QueryBuilder
 
     public function paginate(int $page = 1, int $perPage = 15): array
     {
+        $originalSelects = $this->selects;
         $total = $this->count();
+        $this->selects = $originalSelects;
+
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = max(1, min($page, $lastPage));
 

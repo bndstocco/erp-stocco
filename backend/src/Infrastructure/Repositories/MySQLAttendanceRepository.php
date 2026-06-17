@@ -15,15 +15,15 @@ class MySQLAttendanceRepository implements AttendanceRepositoryInterface
 
     public function __construct()
     {
-        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'attendance a');
+        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'attendance');
     }
 
     public function findById(int $id): ?Attendance
     {
         $data = (clone $this->qb)
-            ->select(['a.*', 'e.first_name', 'e.last_name'])
-            ->join('employees e', 'a.employee_id', '=', 'e.id')
-            ->where('a.id', $id)
+            ->select(['attendancemployees.*', 'employees.first_name', 'employees.last_name'])
+            ->join('employees', 'attendancemployees.employee_id', '=', 'employees.id')
+            ->where('attendancemployees.id', $id)
             ->first();
         return $data ? $this->hydrate($data) : null;
     }
@@ -39,27 +39,27 @@ class MySQLAttendanceRepository implements AttendanceRepositoryInterface
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
-        $qb->select(['a.*', 'e.first_name', 'e.last_name', "CONCAT(e.first_name, ' ', e.last_name) as employee_name"])
-           ->join('employees e', 'a.employee_id', '=', 'e.id');
+        $qb->select(['attendancemployees.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"])
+           ->join('employees', 'attendancemployees.employee_id', '=', 'employees.id');
 
         if (!empty($filters['employee_id'])) {
-            $qb->where('a.employee_id', $filters['employee_id']);
+            $qb->where('attendancemployees.employee_id', $filters['employee_id']);
         }
         if (!empty($filters['status'])) {
-            $qb->where('a.status', $filters['status']);
+            $qb->where('attendancemployees.status', $filters['status']);
         }
         if (!empty($filters['date_from'])) {
-            $qb->where('a.date', '>=', $filters['date_from']);
+            $qb->where('attendancemployees.date', '>=', $filters['date_from']);
         }
         if (!empty($filters['date_to'])) {
-            $qb->where('a.date', '<=', $filters['date_to']);
+            $qb->where('attendancemployees.date', '<=', $filters['date_to']);
         }
         if (!empty($filters['month']) && !empty($filters['year'])) {
-            $qb->where('MONTH(a.date)', $filters['month']);
-            $qb->where('YEAR(a.date)', $filters['year']);
+            $qb->where('MONTH(attendancemployees.date)', $filters['month']);
+            $qb->where('YEAR(attendancemployees.date)', $filters['year']);
         }
 
-        $qb->orderBy('a.date', 'DESC');
+        $qb->orderBy('attendancemployees.date', 'DESC');
 
         if (!empty($filters['per_page'])) {
             $page = $filters['page'] ?? 1;

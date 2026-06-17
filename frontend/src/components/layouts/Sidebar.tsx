@@ -69,14 +69,9 @@ export default function Sidebar() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-5 border-b border-gray-700">
-        <div>
-          <h1 className="text-xl font-bold text-white">ERP Stocco</h1>
-          <p className="text-xs text-gray-400">Sistema de Gestão</p>
-        </div>
-        <button onClick={() => setMobileOpen(false)} className="lg:hidden text-gray-400 hover:text-white">
-          <X size={24} />
-        </button>
+      <div className="px-3 py-5 border-b border-gray-700">
+        <h1 className="text-xl font-bold text-white">ERP Stocco</h1>
+        <p className="text-xs text-gray-400">Sistema de Gestão</p>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
@@ -133,9 +128,9 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-gray-700 p-4">
+      <div className="border-t border-gray-700 px-3 py-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+          <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">

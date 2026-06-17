@@ -9,7 +9,9 @@ class Sale
     private ?int $id;
     private string $invoiceNumber;
     private ?int $customerId;
+    private ?string $customerName;
     private int $userId;
+    private ?string $userName;
     private float $subtotal;
     private float $discount;
     private float $total;
@@ -26,7 +28,9 @@ class Sale
         ?int $id = null,
         string $invoiceNumber = '',
         ?int $customerId = null,
+        ?string $customerName = null,
         int $userId = 0,
+        ?string $userName = null,
         float $subtotal = 0.0,
         float $discount = 0.0,
         float $total = 0.0,
@@ -42,7 +46,9 @@ class Sale
         $this->id = $id;
         $this->invoiceNumber = $invoiceNumber;
         $this->customerId = $customerId;
+        $this->customerName = $customerName;
         $this->userId = $userId;
+        $this->userName = $userName;
         $this->subtotal = $subtotal;
         $this->discount = $discount;
         $this->total = $total;
@@ -59,7 +65,9 @@ class Sale
     public function getId(): ?int { return $this->id; }
     public function getInvoiceNumber(): string { return $this->invoiceNumber; }
     public function getCustomerId(): ?int { return $this->customerId; }
+    public function getCustomerName(): ?string { return $this->customerName; }
     public function getUserId(): int { return $this->userId; }
+    public function getUserName(): ?string { return $this->userName; }
     public function getSubtotal(): float { return $this->subtotal; }
     public function getDiscount(): float { return $this->discount; }
     public function getTotal(): float { return $this->total; }
@@ -104,7 +112,9 @@ class Sale
             'id' => $this->id,
             'invoice_number' => $this->invoiceNumber,
             'customer_id' => $this->customerId,
+            'customer_name' => $this->customerName,
             'user_id' => $this->userId,
+            'user_name' => $this->userName,
             'subtotal' => $this->subtotal,
             'discount' => $this->discount,
             'total' => $this->total,

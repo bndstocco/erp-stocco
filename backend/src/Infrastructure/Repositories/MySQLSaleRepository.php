@@ -17,16 +17,17 @@ class MySQLSaleRepository implements SaleRepositoryInterface
 
     public function __construct()
     {
-        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'sales s');
+        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'sales');
         $this->itemQb = new QueryBuilder(Connection::getInstance()->getPdo(), 'sale_items');
     }
 
     public function findById(int $id): ?Sale
     {
         $data = (clone $this->qb)
-            ->select(['s.*', 'c.name as customer_name'])
-            ->join('customers c', 's.customer_id', '=', 'c.id', 'LEFT')
-            ->where('s.id', $id)
+            ->select(['sales.*', 'customers.name as customer_name', 'users.name as user_name'])
+            ->join('customers', 'sales.customer_id', '=', 'customers.id', 'LEFT')
+            ->join('users', 'sales.user_id', '=', 'users.id', 'LEFT')
+            ->where('sales.id', $id)
             ->first();
 
         if (!$data) return null;
@@ -47,30 +48,30 @@ class MySQLSaleRepository implements SaleRepositoryInterface
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
-        $qb->select(['s.*', 'c.name as customer_name', 'u.name as user_name'])
-           ->join('customers c', 's.customer_id', '=', 'c.id', 'LEFT')
-           ->join('users u', 's.user_id', '=', 'u.id', 'LEFT');
+        $qb->select(['sales.*', 'customers.name as customer_name', 'users.name as user_name'])
+           ->join('customers', 'sales.customer_id', '=', 'customers.id', 'LEFT')
+           ->join('users', 'sales.user_id', '=', 'users.id', 'LEFT');
 
         if (!empty($filters['search'])) {
-            $qb->whereLike('s.invoice_number', $filters['search']);
+            $qb->whereLike('sales.invoice_number', $filters['search']);
         }
         if (!empty($filters['customer_id'])) {
-            $qb->where('s.customer_id', $filters['customer_id']);
+            $qb->where('sales.customer_id', $filters['customer_id']);
         }
         if (!empty($filters['status'])) {
-            $qb->where('s.status', $filters['status']);
+            $qb->where('sales.status', $filters['status']);
         }
         if (!empty($filters['payment_method'])) {
-            $qb->where('s.payment_method', $filters['payment_method']);
+            $qb->where('sales.payment_method', $filters['payment_method']);
         }
         if (!empty($filters['date_from'])) {
-            $qb->where('s.sale_date', '>=', $filters['date_from']);
+            $qb->where('sales.sale_date', '>=', $filters['date_from']);
         }
         if (!empty($filters['date_to'])) {
-            $qb->where('s.sale_date', '<=', $filters['date_to']);
+            $qb->where('sales.sale_date', '<=', $filters['date_to']);
         }
 
-        $qb->orderBy('s.created_at', 'DESC');
+        $qb->orderBy('sales.created_at', 'DESC');
 
         if (!empty($filters['per_page'])) {
             $page = $filters['page'] ?? 1;
@@ -84,41 +85,31 @@ class MySQLSaleRepository implements SaleRepositoryInterface
 
     public function save(Sale $sale): Sale
     {
-        $conn = Connection::getInstance();
-        $conn->beginTransaction();
+        $id = $this->qb->insert([
+            'invoice_number' => $sale->getInvoiceNumber(),
+            'customer_id' => $sale->getCustomerId(),
+            'user_id' => $sale->getUserId(),
+            'subtotal' => $sale->getSubtotal(),
+            'discount' => $sale->getDiscount(),
+            'total' => $sale->getTotal(),
+            'payment_method' => $sale->getPaymentMethod(),
+            'installment_count' => $sale->getInstallmentCount(),
+            'status' => $sale->getStatus(),
+            'notes' => $sale->getNotes(),
+            'sale_date' => $sale->getSaleDate() ?? date('Y-m-d H:i:s'),
+        ]);
+        $sale->setId((int)$id);
 
-        try {
-            $id = $this->qb->insert([
-                'invoice_number' => $sale->getInvoiceNumber(),
-                'customer_id' => $sale->getCustomerId(),
-                'user_id' => $sale->getUserId(),
-                'subtotal' => $sale->getSubtotal(),
-                'discount' => $sale->getDiscount(),
-                'total' => $sale->getTotal(),
-                'payment_method' => $sale->getPaymentMethod(),
-                'installment_count' => $sale->getInstallmentCount(),
-                'status' => $sale->getStatus(),
-                'notes' => $sale->getNotes(),
-                'sale_date' => $sale->getSaleDate() ?? date('Y-m-d H:i:s'),
+        foreach ($sale->getItems() as $item) {
+            $item->setSaleId($sale->getId());
+            $this->itemQb->insert([
+                'sale_id' => $item->getSaleId(),
+                'product_id' => $item->getProductId(),
+                'product_name' => $item->getProductName(),
+                'quantity' => $item->getQuantity(),
+                'unit_price' => $item->getUnitPrice(),
+                'subtotal' => $item->getSubtotal(),
             ]);
-            $sale->setId((int)$id);
-
-            foreach ($sale->getItems() as $item) {
-                $item->setSaleId($sale->getId());
-                $this->itemQb->insert([
-                    'sale_id' => $item->getSaleId(),
-                    'product_id' => $item->getProductId(),
-                    'product_name' => $item->getProductName(),
-                    'quantity' => $item->getQuantity(),
-                    'unit_price' => $item->getUnitPrice(),
-                    'subtotal' => $item->getSubtotal(),
-                ]);
-            }
-
-            $conn->commit();
-        } catch (\Exception $e) {
-            $conn->rollback();
-            throw $e;
         }
 
         return $sale;
@@ -179,14 +170,14 @@ class MySQLSaleRepository implements SaleRepositoryInterface
         $pdo = Connection::getInstance()->getPdo();
         $stmt = $pdo->prepare("
             SELECT 
-                si.product_id,
-                si.product_name,
-                SUM(si.quantity) as total_quantity,
-                SUM(si.subtotal) as total_revenue
-            FROM sale_items si
-            JOIN sales s ON si.sale_id = s.id
-            WHERE s.status = 'completed'
-            GROUP BY si.product_id, si.product_name
+                sale_items.product_id,
+                sale_items.product_name,
+                SUM(sale_items.quantity) as total_quantity,
+                SUM(sale_items.subtotal) as total_revenue
+            FROM sale_items
+            JOIN sales ON sale_items.sale_id = sales.id
+            WHERE sales.status = 'completed'
+            GROUP BY sale_items.product_id, sale_items.product_name
             ORDER BY total_quantity DESC
             LIMIT :limit
         ");
@@ -201,7 +192,9 @@ class MySQLSaleRepository implements SaleRepositoryInterface
             id: (int) $data['id'],
             invoiceNumber: $data['invoice_number'],
             customerId: $data['customer_id'] ? (int) $data['customer_id'] : null,
+            customerName: $data['customer_name'] ?? null,
             userId: (int) $data['user_id'],
+            userName: $data['user_name'] ?? null,
             subtotal: (float) $data['subtotal'],
             discount: (float) $data['discount'],
             total: (float) $data['total'],

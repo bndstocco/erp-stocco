@@ -28,8 +28,12 @@ export function createCrudService<T>(endpoint: string) {
     },
 
     async getAll(params?: Record<string, any>): Promise<T[]> {
-      const response = await api.get<ApiResponse<T[]>>(endpoint, { params })
-      return response.data.data as T[]
+      const response = await api.get<ApiResponse<any>>(endpoint, { params })
+      const data = response.data.data
+      if (data && typeof data === 'object' && 'data' in data && Array.isArray(data.data)) {
+        return data.data as T[]
+      }
+      return (data || []) as T[]
     },
   }
 }

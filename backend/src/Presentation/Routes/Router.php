@@ -86,6 +86,7 @@ class Router
         }
 
         $controller = new $controllerClass();
+        $params = array_map(fn($v) => is_numeric($v) ? (int) $v : $v, $params);
         $controller->{$method}(...array_values($params));
     }
 }

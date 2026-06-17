@@ -15,15 +15,15 @@ class MySQLTransactionRepository implements TransactionRepositoryInterface
 
     public function __construct()
     {
-        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'transactions t');
+        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'transactions');
     }
 
     public function findById(int $id): ?Transaction
     {
         $data = (clone $this->qb)
-            ->select(['t.*', 'a.name as account_name'])
-            ->join('accounts a', 't.account_id', '=', 'a.id')
-            ->where('t.id', $id)
+            ->select(['transactions.*', 'accounts.name as account_name'])
+            ->join('accounts', 'transactions.account_id', '=', 'accounts.id')
+            ->where('transactions.id', $id)
             ->first();
         return $data ? $this->hydrate($data) : null;
     }
@@ -31,29 +31,29 @@ class MySQLTransactionRepository implements TransactionRepositoryInterface
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
-        $qb->select(['t.*', 'a.name as account_name'])
-           ->join('accounts a', 't.account_id', '=', 'a.id');
+        $qb->select(['transactions.*', 'accounts.name as account_name'])
+           ->join('accounts', 'transactions.account_id', '=', 'accounts.id');
 
         if (!empty($filters['account_id'])) {
-            $qb->where('t.account_id', $filters['account_id']);
+            $qb->where('transactions.account_id', $filters['account_id']);
         }
         if (!empty($filters['type'])) {
-            $qb->where('t.type', $filters['type']);
+            $qb->where('transactions.type', $filters['type']);
         }
         if (!empty($filters['category'])) {
-            $qb->where('t.category', $filters['category']);
+            $qb->where('transactions.category', $filters['category']);
         }
         if (!empty($filters['status'])) {
-            $qb->where('t.status', $filters['status']);
+            $qb->where('transactions.status', $filters['status']);
         }
         if (!empty($filters['date_from'])) {
-            $qb->where('t.transaction_date', '>=', $filters['date_from']);
+            $qb->where('transactions.transaction_date', '>=', $filters['date_from']);
         }
         if (!empty($filters['date_to'])) {
-            $qb->where('t.transaction_date', '<=', $filters['date_to']);
+            $qb->where('transactions.transaction_date', '<=', $filters['date_to']);
         }
 
-        $qb->orderBy('t.transaction_date', 'DESC');
+        $qb->orderBy('transactions.transaction_date', 'DESC');
 
         if (!empty($filters['per_page'])) {
             $page = $filters['page'] ?? 1;

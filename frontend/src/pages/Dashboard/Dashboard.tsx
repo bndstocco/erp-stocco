@@ -152,7 +152,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {data?.recent_sales?.map((sale: any) => (
+              {data?.recent_sales?.data?.map((sale: any) => (
                 <tr key={sale.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/sales/${sale.id}`)}>
                   <td className="table-cell font-medium">{sale.invoice_number}</td>
                   <td className="table-cell">{sale.customer_name || 'Consumidor'}</td>

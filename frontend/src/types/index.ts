@@ -242,7 +242,7 @@ export interface DashboardData {
   }
   monthly_revenue_chart: { month: number; total_sales: number; revenue: number; total_discounts: number }[]
   top_products: { product_id: number; product_name: string; total_quantity: number; total_revenue: number }[]
-  recent_sales: Sale[]
+  recent_sales: PaginatedResponse<Sale>
 }
 
 export interface PaginatedResponse<T> {

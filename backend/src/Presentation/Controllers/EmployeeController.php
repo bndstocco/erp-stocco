@@ -58,7 +58,7 @@ class EmployeeController
             department: $data['department'] ?? null,
             position: $data['position'] ?? null,
             salary: (float) ($data['salary'] ?? 0),
-            hireDate: $data['hire_date'] ?? date('Y-m-d'),
+            hireDate: !empty($data['hire_date']) ? $data['hire_date'] : date('Y-m-d'),
             terminationDate: $data['termination_date'] ?? null,
             status: $data['status'] ?? 'active',
         );
@@ -83,9 +83,16 @@ class EmployeeController
         if (isset($data['email'])) $employee->setEmail($data['email']);
         if (isset($data['phone'])) $employee->setPhone($data['phone']);
         if (isset($data['document'])) $employee->setDocument($data['document']);
+        if (isset($data['address'])) $employee->setAddress($data['address']);
+        if (isset($data['city'])) $employee->setCity($data['city']);
+        if (isset($data['state'])) $employee->setState($data['state']);
+        if (isset($data['zipcode'])) $employee->setZipcode($data['zipcode']);
+        if (isset($data['birth_date'])) $employee->setBirthDate($data['birth_date']);
         if (isset($data['department'])) $employee->setDepartment($data['department']);
         if (isset($data['position'])) $employee->setPosition($data['position']);
         if (isset($data['salary'])) $employee->setSalary((float) $data['salary']);
+        if (isset($data['hire_date'])) $employee->setHireDate($data['hire_date']);
+        if (isset($data['termination_date'])) $employee->setTerminationDate($data['termination_date']);
         if (isset($data['status'])) $employee->setStatus($data['status']);
 
         $this->repository->update($employee);

@@ -15,15 +15,15 @@ class MySQLPayrollRepository implements PayrollRepositoryInterface
 
     public function __construct()
     {
-        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'payroll p');
+        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'payroll');
     }
 
     public function findById(int $id): ?Payroll
     {
         $data = (clone $this->qb)
-            ->select(['p.*', 'e.first_name', 'e.last_name', "CONCAT(e.first_name, ' ', e.last_name) as employee_name"])
-            ->join('employees e', 'p.employee_id', '=', 'e.id')
-            ->where('p.id', $id)
+            ->select(['payroll.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"])
+            ->join('employees', 'payroll.employee_id', '=', 'employees.id')
+            ->where('payroll.id', $id)
             ->first();
         return $data ? $this->hydrate($data) : null;
     }
@@ -31,23 +31,23 @@ class MySQLPayrollRepository implements PayrollRepositoryInterface
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
-        $qb->select(['p.*', 'e.first_name', 'e.last_name', "CONCAT(e.first_name, ' ', e.last_name) as employee_name"])
-           ->join('employees e', 'p.employee_id', '=', 'e.id');
+        $qb->select(['payroll.*', 'employees.first_name', 'employees.last_name', "CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"])
+           ->join('employees', 'payroll.employee_id', '=', 'employees.id');
 
         if (!empty($filters['employee_id'])) {
-            $qb->where('p.employee_id', $filters['employee_id']);
+            $qb->where('payroll.employee_id', $filters['employee_id']);
         }
         if (!empty($filters['status'])) {
-            $qb->where('p.status', $filters['status']);
+            $qb->where('payroll.status', $filters['status']);
         }
         if (!empty($filters['period_start'])) {
-            $qb->where('p.period_start', '>=', $filters['period_start']);
+            $qb->where('payroll.period_start', '>=', $filters['period_start']);
         }
         if (!empty($filters['period_end'])) {
-            $qb->where('p.period_end', '<=', $filters['period_end']);
+            $qb->where('payroll.period_end', '<=', $filters['period_end']);
         }
 
-        $qb->orderBy('p.created_at', 'DESC');
+        $qb->orderBy('payroll.created_at', 'DESC');
 
         if (!empty($filters['per_page'])) {
             $page = $filters['page'] ?? 1;

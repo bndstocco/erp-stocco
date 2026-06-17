@@ -17,16 +17,16 @@ class MySQLPurchaseRepository implements PurchaseRepositoryInterface
 
     public function __construct()
     {
-        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'purchases p');
+        $this->qb = new QueryBuilder(Connection::getInstance()->getPdo(), 'purchases');
         $this->itemQb = new QueryBuilder(Connection::getInstance()->getPdo(), 'purchase_items');
     }
 
     public function findById(int $id): ?Purchase
     {
         $data = (clone $this->qb)
-            ->select(['p.*', 's.company_name as supplier_name'])
-            ->join('suppliers s', 'p.supplier_id', '=', 's.id', 'LEFT')
-            ->where('p.id', $id)
+            ->select(['purchases.*', 'suppliers.company_name as supplier_name'])
+            ->join('suppliers', 'purchases.supplier_id', '=', 'suppliers.id', 'LEFT')
+            ->where('purchases.id', $id)
             ->first();
 
         if (!$data) return null;
@@ -47,27 +47,27 @@ class MySQLPurchaseRepository implements PurchaseRepositoryInterface
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
-        $qb->select(['p.*', 's.company_name as supplier_name', 'u.name as user_name'])
-           ->join('suppliers s', 'p.supplier_id', '=', 's.id', 'LEFT')
-           ->join('users u', 'p.user_id', '=', 'u.id', 'LEFT');
+        $qb->select(['purchases.*', 'suppliers.company_name as supplier_name', 'users.name as user_name'])
+           ->join('suppliers', 'purchases.supplier_id', '=', 'suppliers.id', 'LEFT')
+           ->join('users', 'purchases.user_id', '=', 'users.id', 'LEFT');
 
         if (!empty($filters['search'])) {
-            $qb->whereLike('p.purchase_order', $filters['search']);
+            $qb->whereLike('purchases.purchase_order', $filters['search']);
         }
         if (!empty($filters['supplier_id'])) {
-            $qb->where('p.supplier_id', $filters['supplier_id']);
+            $qb->where('purchases.supplier_id', $filters['supplier_id']);
         }
         if (!empty($filters['status'])) {
-            $qb->where('p.status', $filters['status']);
+            $qb->where('purchases.status', $filters['status']);
         }
         if (!empty($filters['date_from'])) {
-            $qb->where('p.purchase_date', '>=', $filters['date_from']);
+            $qb->where('purchases.purchase_date', '>=', $filters['date_from']);
         }
         if (!empty($filters['date_to'])) {
-            $qb->where('p.purchase_date', '<=', $filters['date_to']);
+            $qb->where('purchases.purchase_date', '<=', $filters['date_to']);
         }
 
-        $qb->orderBy('p.created_at', 'DESC');
+        $qb->orderBy('purchases.created_at', 'DESC');
 
         if (!empty($filters['per_page'])) {
             $page = $filters['page'] ?? 1;

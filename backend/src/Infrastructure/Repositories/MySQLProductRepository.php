@@ -21,9 +21,9 @@ class MySQLProductRepository implements ProductRepositoryInterface
     public function findById(int $id): ?Product
     {
         $data = (clone $this->qb)
-            ->select(['p.*', 'c.name as category_name'])
-            ->join('categories c', 'p.category_id', '=', 'c.id', 'LEFT')
-            ->where('p.id', $id)
+            ->select(['products.*', 'categories.name as category_name'])
+            ->join('categories', 'products.category_id', '=', 'categories.id', 'LEFT')
+            ->where('products.id', $id)
             ->first();
         return $data ? $this->hydrate($data) : null;
     }
@@ -37,26 +37,26 @@ class MySQLProductRepository implements ProductRepositoryInterface
     public function findAll(array $filters = []): array
     {
         $qb = clone $this->qb;
-        $qb->select(['p.*', 'c.name as category_name'])
-           ->join('categories c', 'p.category_id', '=', 'c.id', 'LEFT');
+        $qb->select(['products.*', 'categories.name as category_name'])
+           ->join('categories', 'products.category_id', '=', 'categories.id', 'LEFT');
 
         if (!empty($filters['search'])) {
             $qb->where(function($q) use ($filters) {
-                $q->whereLike('p.name', $filters['search'])
-                  ->orWhereLike('p.sku', $filters['search']);
+                $q->whereLike('products.name', $filters['search'])
+                  ->orWhereLike('products.sku', $filters['search']);
             });
         }
         if (!empty($filters['category_id'])) {
-            $qb->where('p.category_id', $filters['category_id']);
+            $qb->where('products.category_id', $filters['category_id']);
         }
         if (!empty($filters['status'])) {
-            $qb->where('p.status', $filters['status']);
+            $qb->where('products.status', $filters['status']);
         }
         if (!empty($filters['low_stock'])) {
-            $qb->where('p.stock_quantity', '<=', 'p.min_stock');
+            $qb->whereColumn('products.stock_quantity', '<=', 'products.min_stock');
         }
 
-        $qb->orderBy('p.created_at', 'DESC');
+        $qb->orderBy('products.created_at', 'DESC');
 
         if (!empty($filters['per_page'])) {
             $page = $filters['page'] ?? 1;
@@ -128,8 +128,8 @@ class MySQLProductRepository implements ProductRepositoryInterface
     public function findLowStock(): array
     {
         $qb = clone $this->qb;
-        $data = $qb->where('stock_quantity', '<=', 'min_stock')
-                   ->where('status', 'active')
+        $data = $qb->whereColumn('products.stock_quantity', '<=', 'products.min_stock')
+                   ->where('products.status', 'active')
                    ->get();
         return array_map(fn($d) => $this->hydrate($d)->toArray(), $data);
     }
